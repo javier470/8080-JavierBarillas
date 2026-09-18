@@ -1,6 +1,8 @@
 class Intel8080 {
-    constructor() {
+    constructor(fpu = null) {
         this.memory = new Uint8Array(65536);
+        this.fpu = fpu;
+        if (this.fpu) this.fpu.attachMemory(this.memory);
         this.reset();
     }
 
@@ -101,7 +103,10 @@ class Intel8080 {
     }
 
     writeMemory(addr, val) {
-        this.memory[addr & 0xFFFF] = val & 0xFF;
+        const address = addr & 0xFFFF;
+        const value = val & 0xFF;
+        this.memory[address] = value;
+        if (this.fpu) this.fpu.writeMemory(address, value);
     }
 
     fetch() {
@@ -266,8 +271,16 @@ class Intel8080 {
             case 0x3F: this.flags.cy = !this.flags.cy; break; // CMC
 
             // Special
-            case 0xDB: this.fetch(); break; // IN (Ignored for now)
-            case 0xD3: this.fetch(); break; // OUT (Ignored for now)
+            case 0xDB: {
+                const port = this.fetch();
+                this.registers.a = this.fpu ? this.fpu.readPort(port) : 0;
+                break;
+            }
+            case 0xD3: {
+                const port = this.fetch();
+                if (this.fpu) this.fpu.writePort(port, this.registers.a);
+                break;
+            }
             case 0xFB: break; // EI
             case 0xF3: break; // DI
         }

@@ -1,4 +1,5 @@
-const cpu = new Intel8080();
+const fpu = new FloatingPointCoprocessor();
+const cpu = new Intel8080(fpu);
 const assembler = new Assembler8080();
 
 let runInterval = null;
@@ -29,6 +30,44 @@ function updateUI() {
 
     renderMemory();
     renderStack();
+    renderFPU();
+}
+
+function renderFPU() {
+    const hasOperation = fpu.trace.length > 0;
+    const valueA = hasOperation ? fpu.getOperand('A') : Number(document.getElementById('fpu-a').value);
+    const valueB = hasOperation ? fpu.getOperand('B') : Number(document.getElementById('fpu-b').value);
+    const operation = document.getElementById('fpu-operation').value;
+    document.getElementById('fpu-result').textContent = Number.isFinite(fpu.result) ? fpu.result : 'NaN';
+    document.getElementById('fpu-status').textContent = fpu.status;
+    document.getElementById('fpu-last').textContent = fpu.lastOperation;
+    document.getElementById('fpu-bits-a').textContent = fpu.getBits(valueA);
+    document.getElementById('fpu-bits-b').textContent = fpu.getBits(valueB);
+    document.getElementById('fpu-bits-result').textContent = fpu.getBits(fpu.result);
+    document.getElementById('fpu-cycles').textContent = `${fpu.cycles} ciclos`; 
+    document.getElementById('fpu-status').className = `fpu-status ${fpu.status.toLowerCase()}`;
+
+    const labels = { add: '+', sub: '-', mul: 'x', div: '/' };
+    document.getElementById('fpu-equation').textContent = `${valueA} ${labels[operation]} ${valueB} = ${fpu.result}`;
+    const values = [valueA, valueB, fpu.result];
+    const max = Math.max(...values.map(value => Math.abs(value)), 1);
+    document.querySelectorAll('.fpu-bar').forEach((bar, index) => {
+        bar.style.height = `${Math.max(8, Math.abs(values[index]) / max * 100)}%`;
+        bar.classList.toggle('negative', values[index] < 0);
+        bar.querySelector('strong').textContent = Number.isFinite(values[index]) ? values[index] : 'NaN';
+    });
+    document.getElementById('fpu-history').innerHTML = fpu.trace.length
+        ? fpu.trace.map(item => `<li><b>${item.operation}</b> ${item.a} y ${item.b} <span>= ${item.result}</span></li>`).join('')
+        : '<li class="empty-history">Aun no hay operaciones</li>';
+}
+
+function loadFPUOperands() {
+    const map = FloatingPointCoprocessor.MEMORY_MAP;
+    fpu.floatBytes(Number(document.getElementById('fpu-a').value)).forEach((byte, index) => cpu.writeMemory(map.OPERAND_A + index, byte));
+    fpu.floatBytes(Number(document.getElementById('fpu-b').value)).forEach((byte, index) => cpu.writeMemory(map.OPERAND_B + index, byte));
+    const command = { add: 1, sub: 2, mul: 3, div: 4 }[document.getElementById('fpu-operation').value];
+    cpu.writeMemory(map.COMMAND, command);
+    updateUI();
 }
 
 function renderStack() {
@@ -163,6 +202,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
         runInterval = null;
     }
     cpu.reset();
+    fpu.reset();
 
     // Clear assembler output
     const output = document.getElementById('assembler-output');
@@ -186,6 +226,9 @@ document.getElementById('btn-mem-go').addEventListener('click', () => {
     memoryStart = parseInt(val, 16) || 0;
     renderMemory();
 });
+
+document.getElementById('btn-fpu-execute').addEventListener('click', loadFPUOperands);
+['fpu-a', 'fpu-b', 'fpu-operation'].forEach(id => document.getElementById(id).addEventListener('input', renderFPU));
 
 // Initial UI update
 updateUI();

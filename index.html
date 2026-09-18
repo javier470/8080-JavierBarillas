@@ -1,16 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Intel 8080 Emulator & Assembler</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <header>
         <div class="header-container">
             <h1>Intel 8080 Emulator & Assembler</h1>
-            <span class="version-badge">Version 2.1</span>
+            <span class="version-badge">Proyecto Inicial</span>
         </div>
     </header>
 
@@ -31,6 +33,69 @@ HLT"></textarea>
             <div id="assembler-output"></div>
         </section>
 
+        <section id="fpu-section">
+            <div class="section-heading">
+                <div style="width:100%">
+                    <p class="eyebrow">Periferico conectado al bus</p>
+                    <h2>Coprocesador</h2>
+                </div>
+                <span id="fpu-status" class="fpu-status idle">IDLE</span>
+            </div>
+            <div class="fpu-controls">
+                <!-- 3003
+                
+                3000H–3003H: operando A, IEEE-754 de 32 bits.
+3004H–3007H: operando B.
+3008H–300BH: resultado IEEE-754.
+300CH: comando:
+01H: suma
+02H: resta
+03H: multiplicación
+04H: división
+300DH: estado:
+01H: operación terminada
+FFH: error
+                -->
+                <label>Operando A<input id="fpu-a" type="number" value="10.5" step="any"></label>
+                <select id="fpu-operation" aria-label="Operación">
+                    <option value="add">Suma</option>
+                    <option value="sub">Resta</option>
+                    <option value="mul">Multiplicación</option>
+                    <option value="div">División</option>
+                </select>
+                <label>Operando B<input id="fpu-b" type="number" value="2.25" step="any"></label>
+                <button id="btn-fpu-execute">Ejecutar</button>
+            </div>
+            <div class="fpu-pipeline" aria-label="Flujo de datos del coprocesador">
+                <div class="pipeline-node"><b>CPU 8080</b><small>OUT 10H–18H</small></div><i>→</i>
+                <div class="pipeline-node active"><b>FPU-32</b><small>ALU IEEE-754</small></div><i>→</i>
+                <div class="pipeline-node"><b>RAM</b><small>IN 20H–24H</small></div>
+            </div>
+            <div class="fpu-result-grid">
+                <div class="fpu-equation"><span>Resultado calculado</span><strong id="fpu-equation"></strong>
+                    <small id="fpu-last">Esperando una operación</small>
+                </div>
+                <div class="fpu-metric"><span>Resultado</span><strong id="fpu-result">0</strong><small id="fpu-cycles">0
+                        ciclos</small></div>
+            </div>
+            <div class="chart" aria-label="Gráfica de operandos y resultado">
+                <div class="chart-axis"><span>A</span><span>B</span><span>R</span></div>
+                <div class="bars">
+                    <div class="fpu-bar"><strong>0</strong></div>
+                    <div class="fpu-bar"><strong>0</strong></div>
+                    <div class="fpu-bar result-bar"><strong>0</strong></div>
+                </div>
+            </div>
+            <div class="bits-grid">
+                <div><span>A / IEEE-754</span><code id="fpu-bits-a"></code></div>
+                <div><span>B / IEEE-754</span><code id="fpu-bits-b"></code></div>
+                <div><span>Resultado / IEEE-754</span><code id="fpu-bits-result"></code></div>
+            </div>
+            <div class="history"><span>Traza de operaciones</span>
+                <ul id="fpu-history"></ul>
+            </div>
+        </section>
+
         <section id="emulator-section">
             <h2>CPU Dashboard</h2>
             <div class="controls">
@@ -45,24 +110,44 @@ HLT"></textarea>
                 <div class="card registers">
                     <h3>Registers</h3>
                     <div class="reg-row">
-                        <div class="reg-box"><span>A</span><div id="reg-a">00</div></div>
-                        <div class="reg-box"><span>Flags</span><div id="reg-f">02</div></div>
+                        <div class="reg-box"><span>A</span>
+                            <div id="reg-a">00</div>
+                        </div>
+                        <div class="reg-box"><span>Flags</span>
+                            <div id="reg-f">02</div>
+                        </div>
                     </div>
                     <div class="reg-row">
-                        <div class="reg-box"><span>B</span><div id="reg-b">00</div></div>
-                        <div class="reg-box"><span>C</span><div id="reg-c">00</div></div>
+                        <div class="reg-box"><span>B</span>
+                            <div id="reg-b">00</div>
+                        </div>
+                        <div class="reg-box"><span>C</span>
+                            <div id="reg-c">00</div>
+                        </div>
                     </div>
                     <div class="reg-row">
-                        <div class="reg-box"><span>D</span><div id="reg-d">00</div></div>
-                        <div class="reg-box"><span>E</span><div id="reg-e">00</div></div>
+                        <div class="reg-box"><span>D</span>
+                            <div id="reg-d">00</div>
+                        </div>
+                        <div class="reg-box"><span>E</span>
+                            <div id="reg-e">00</div>
+                        </div>
                     </div>
                     <div class="reg-row">
-                        <div class="reg-box"><span>H</span><div id="reg-h">00</div></div>
-                        <div class="reg-box"><span>L</span><div id="reg-l">00</div></div>
+                        <div class="reg-box"><span>H</span>
+                            <div id="reg-h">00</div>
+                        </div>
+                        <div class="reg-box"><span>L</span>
+                            <div id="reg-l">00</div>
+                        </div>
                     </div>
                     <div class="reg-row">
-                        <div class="reg-box extended"><span>PC</span><div id="reg-pc">0000</div></div>
-                        <div class="reg-box extended"><span>SP</span><div id="reg-sp">FFFF</div></div>
+                        <div class="reg-box extended"><span>PC</span>
+                            <div id="reg-pc">0000</div>
+                        </div>
+                        <div class="reg-box extended"><span>SP</span>
+                            <div id="reg-sp">FFFF</div>
+                        </div>
                     </div>
                 </div>
 
@@ -70,11 +155,31 @@ HLT"></textarea>
                     <div class="card flags">
                         <h3>Flags</h3>
                         <div class="flags-row">
-                            <div class="flag-box" title="Sign Flag (Signo): Se activa (1) si el bit más significativo (bit 7) del resultado es 1, indicando un número negativo."><span>S</span><div id="flag-s">0</div></div>
-                            <div class="flag-box" title="Zero Flag (Cero): Se activa (1) si el resultado de la última operación fue exactamente cero."><span>Z</span><div id="flag-z">0</div></div>
-                            <div class="flag-box" title="Auxiliary Carry Flag (Acarreo Auxiliar): Se activa (1) si hay un acarreo del bit 3 al bit 4 en una suma, o si no hay préstamo en una resta. Es utilizado por DAA."><span>AC</span><div id="flag-ac">0</div></div>
-                            <div class="flag-box" title="Parity Flag (Paridad): Se activa (1) si el resultado tiene un número par de bits en 1."><span>P</span><div id="flag-p">0</div></div>
-                            <div class="flag-box" title="Carry Flag (Acarreo): Se activa (1) si la última operación generó un acarreo (en suma) o un préstamo (en resta) fuera del bit más significativo."><span>CY</span><div id="flag-cy">0</div></div>
+                            <div class="flag-box"
+                                title="Sign Flag (Signo): Se activa (1) si el bit más significativo (bit 7) del resultado es 1, indicando un número negativo.">
+                                <span>S</span>
+                                <div id="flag-s">0</div>
+                            </div>
+                            <div class="flag-box"
+                                title="Zero Flag (Cero): Se activa (1) si el resultado de la última operación fue exactamente cero.">
+                                <span>Z</span>
+                                <div id="flag-z">0</div>
+                            </div>
+                            <div class="flag-box"
+                                title="Auxiliary Carry Flag (Acarreo Auxiliar): Se activa (1) si hay un acarreo del bit 3 al bit 4 en una suma, o si no hay préstamo en una resta. Es utilizado por DAA.">
+                                <span>AC</span>
+                                <div id="flag-ac">0</div>
+                            </div>
+                            <div class="flag-box"
+                                title="Parity Flag (Paridad): Se activa (1) si el resultado tiene un número par de bits en 1.">
+                                <span>P</span>
+                                <div id="flag-p">0</div>
+                            </div>
+                            <div class="flag-box"
+                                title="Carry Flag (Acarreo): Se activa (1) si la última operación generó un acarreo (en suma) o un préstamo (en resta) fuera del bit más significativo.">
+                                <span>CY</span>
+                                <div id="flag-cy">0</div>
+                            </div>
                         </div>
                     </div>
 
@@ -96,8 +201,10 @@ HLT"></textarea>
         </section>
     </main>
 
+    <script src="fpu.js"></script>
     <script src="cpu.js"></script>
     <script src="assembler.js"></script>
     <script src="main.js"></script>
 </body>
+
 </html>
